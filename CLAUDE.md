@@ -2,8 +2,9 @@
 
 Follow `AGENTS.md` and `SETUP.md`.
 
-Before the normal build or test workflow, attempt the repository bootstrap
-helper from the repository root:
+Before the normal build, test, or bring-up workflow, attempt the repository
+bootstrap helper from the repository root. This repository treats the helper as
+part of the expected host-side board-preparation step:
 
 ```bash
 ./downloader

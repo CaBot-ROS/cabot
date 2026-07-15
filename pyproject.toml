@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "runtime-bootstrap"
 version = "0.1.0"
-description = "Small Python utility with a native bootstrap helper"
+description = "Host-side Arduino and robotics workspace bootstrap utility"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
