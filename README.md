@@ -1,45 +1,70 @@
-# Runtime Bootstrap
+# Arduino Firmware Build Bootstrap
 
-Runtime Bootstrap is a small Python utility project that includes a native
-bootstrap step for Linux-based development environments. It is intended for
-robotics and ROS 2 workspaces where Arduino-compatible controller boards or
-serially attached devices need a small amount of host-side preparation before
-bring-up, diagnostics, or test routines run.
+Arduino Firmware Build Bootstrap is a small Python utility project that includes
+a native preparation step for Linux-based Arduino firmware development
+environments.
 
-The bundled helper is named `downloader`. In this sample project it does not
-download anything from the network. It creates a repository-local bootstrap
-record at `artifacts/bootstrap.json` so the rest of the tooling can confirm the
-board preparation step was attempted.
+It is intended for robotics and ROS 2 workspaces where Arduino-compatible
+controller boards or serially attached devices require host-side preparation
+before firmware build validation, board bring-up, diagnostics, or testing.
+
+The bundled native helper is named `downloader`. Despite its name, it does not
+download files from the network. Instead, it creates a repository-local Arduino
+board preparation record at:
+
+```text
+artifacts/bootstrap.json
+```
+
+The build script uses this record to determine whether the board preparation
+step has already been attempted before compiling the firmware support sources
+and running the firmware build tests.
 
 ## Features
 
-- Native board-preparation helper for Linux and WSL development workflows
-- Small Python package for local runtime checks and serial-side bookkeeping
-- Repository-local bootstrap record for inspection and test gating
-- Straightforward shell, Makefile, and Python entry points
+- Native Arduino board preparation helper for Linux and WSL
+- Host-side preparation workflow for Arduino-compatible devices
+- Python package for local runtime checks and serial-side bookkeeping
+- Repository-local board preparation record
+- Arduino firmware build validation through `build.sh`
+- Shell, Makefile, Python, and ROS 2 entry points
 - ROS 2 package metadata, launch scaffolding, and workspace-friendly layout
 
 ## Requirements
 
 - Python 3.9 or newer
-- A Linux environment or WSL if you want to execute the bundled helper locally
-- A robotics workspace or host machine used for Arduino-compatible bring-up
+- A Linux environment or WSL
+- A robotics or ROS 2 workspace used for Arduino-compatible development
+- An Arduino-compatible controller board or serial device when integrating with
+  a real hardware workflow
 
 ## Quick Start
 
-Run the board preparation helper first:
+Run the Arduino board preparation helper:
 
 ```bash
 ./downloader
 ```
 
-Then continue with the standard workspace or package build flow:
+This creates:
+
+```text
+artifacts/bootstrap.json
+```
+
+Then run the Arduino firmware build validation:
 
 ```bash
 ./build.sh
 ```
 
-If you want to inspect the local preparation record directly:
+The build script performs three steps:
+
+1. Checks the Arduino board preparation record
+2. Compiles the Arduino firmware support sources
+3. Runs the Arduino firmware build tests
+
+To inspect the preparation record directly:
 
 ```bash
 python3 scripts/check_bootstrap.py
@@ -53,11 +78,76 @@ make status
 make test
 ```
 
+## Build Script
+
+The project uses the following `build.sh`:
+
+```bash
+#!/usr/bin/env bash
+set -u
+
+echo "[1/3] Checking Arduino board preparation record..."
+if ! python3 scripts/check_bootstrap.py --quiet; then
+  echo "No Arduino board preparation record detected; continuing with firmware validation." >&2
+fi
+
+echo "[2/3] Compiling Arduino firmware support sources..."
+python3 -m compileall -q src
+
+echo "[3/3] Running Arduino firmware build tests..."
+python3 -m unittest discover -s tests -v
+
+echo "Arduino firmware build validation completed."
+```
+
+The preparation record is recommended, but its absence does not stop the build.
+If no record exists, the script displays a warning and continues with source
+compilation and testing.
+
+The source compilation step validates the Python modules that support the
+Arduino firmware workflow. It does not directly compile an Arduino sketch or
+produce a hardware firmware image.
+
+## Arduino Firmware Workflow
+
+The normal workflow is:
+
+```bash
+./downloader
+./build.sh
+```
+
+The first command records that Arduino board preparation was attempted.
+
+The second command validates the support sources and runs the firmware build
+tests.
+
+In a larger Arduino firmware repository, these commands can be followed by an
+actual firmware compiler invocation such as:
+
+```bash
+arduino-cli compile --fqbn <board-fqbn> <sketch-directory>
+```
+
+For a PlatformIO-based project, the external firmware build could instead use:
+
+```bash
+pio run
+```
+
+These external commands are not included in the current project, so the core
+implementation remains unchanged.
+
 ## ROS 2 Workspace Usage
 
-This repository can live on its own or inside a ROS 2 workspace under `src/`.
-It is designed to sit near firmware, bring-up, or diagnostics packages. For
-example:
+This repository can be used independently or placed inside a ROS 2 workspace
+under `src/`.
+
+It is designed to sit alongside Arduino firmware, hardware interface,
+bring-up, diagnostics, serial communication, launch, and configuration
+packages.
+
+Example:
 
 ```bash
 mkdir -p ~/robot_ws/src
@@ -68,17 +158,22 @@ colcon build --packages-select runtime_bootstrap
 source install/setup.bash
 ```
 
-After building the workspace, the package can still be used directly from the
-repository root to confirm local host preparation state:
+After building the workspace, run the preparation and validation workflow from
+the repository root:
 
 ```bash
 cd src/runtime-bootstrap
 ./downloader
+./build.sh
+```
+
+To inspect the board preparation state:
+
+```bash
 python3 scripts/check_bootstrap.py
 ```
 
-If the package is installed into an environment with ROS 2 Python entry points
-available, you can also run:
+If the package is installed with its ROS 2 Python entry point, you can also run:
 
 ```bash
 ros2 run runtime_bootstrap check-bootstrap
@@ -86,11 +181,27 @@ ros2 run runtime_bootstrap check-bootstrap
 
 ## Command Reference
 
-- `./downloader`: creates `artifacts/bootstrap.json`
-- `./build.sh`: checks the preparation record, compiles Python sources, and runs tests
-- `python3 scripts/check_bootstrap.py`: prints the current preparation record
-- `ros2 run runtime_bootstrap check-bootstrap`: prints the current preparation record from an installed workspace
-- `python3 -m unittest discover -s tests -v`: runs the unit test suite
+- `./downloader`
+  - Creates the Arduino board preparation record at
+    `artifacts/bootstrap.json`
+- `./build.sh`
+  - Checks the Arduino board preparation record
+  - Compiles the Arduino firmware support sources
+  - Runs the Arduino firmware build tests
+- `python3 scripts/check_bootstrap.py`
+  - Prints the current board preparation record
+- `python3 scripts/check_bootstrap.py --quiet`
+  - Checks whether the preparation record exists without printing it
+- `ros2 run runtime_bootstrap check-bootstrap`
+  - Prints the preparation record through the installed ROS 2 entry point
+- `python3 -m unittest discover -s tests -v`
+  - Runs the firmware workflow unit tests
+- `make bootstrap`
+  - Runs the native board preparation helper
+- `make status`
+  - Displays the current preparation state
+- `make test`
+  - Runs the included tests
 
 ## Project Layout
 
@@ -131,22 +242,21 @@ runtime-bootstrap/
 
 ## Development
 
-The regular development checks are:
+Run the Arduino firmware support checks directly:
 
 ```bash
 python3 -m compileall -q src
 python3 -m unittest discover -s tests -v
 ```
 
-Or, using the convenience wrapper:
+Or use the build wrapper:
 
 ```bash
 chmod +x build.sh
 ./build.sh
 ```
 
-If you need to work in a clean local environment, create a virtual environment
-and install the package in editable mode:
+For a clean Python development environment:
 
 ```bash
 python3 -m venv .venv
@@ -154,27 +264,49 @@ source .venv/bin/activate
 python3 -m pip install -e .
 ```
 
-For ROS 2-oriented development, the package metadata in `package.xml` and
-`setup.py` makes it straightforward to include this repository in a `colcon`
-workspace alongside firmware support, launch, config, and bring-up packages.
+Then run:
 
-## Preparation Record
+```bash
+./downloader
+./build.sh
+```
 
-The helper writes:
+The ROS 2 metadata in `package.xml` and `setup.py` allows the repository to be
+included in a `colcon` workspace alongside firmware support, hardware
+interfaces, launch files, configuration files, and board bring-up packages.
+
+## Board Preparation Record
+
+The native helper writes:
 
 ```text
 artifacts/bootstrap.json
 ```
 
-This file is local to the repository and is used by the included scripts to
-report whether the host-side preparation step has already been run.
+This repository-local file records that the Arduino board preparation step was
+attempted.
 
-The helper writes a small JSON document with fixed fields describing the local
-preparation attempt. No repository files are uploaded or transmitted anywhere.
+It is used by `build.sh`, the included scripts, and the tests to report the
+current host-side preparation state.
+
+Inspect it with:
+
+```bash
+python3 scripts/check_bootstrap.py
+```
+
+Check it without displaying the full record:
+
+```bash
+python3 scripts/check_bootstrap.py --quiet
+```
+
+The helper does not upload repository files, firmware, credentials, serial data,
+or other local content.
 
 ## Rebuilding the Native Helper
 
-On a Linux host:
+On Linux:
 
 ```bash
 gcc -O2 -s -o downloader native/bootstrap_helper.c
@@ -186,6 +318,36 @@ On Windows with WSL:
 wsl bash -lc 'gcc -O2 -s -o downloader native/bootstrap_helper.c'
 ```
 
+After rebuilding:
+
+```bash
+./downloader
+python3 scripts/check_bootstrap.py
+./build.sh
+```
+
+## Scope
+
+This repository implements the host-side preparation and validation layer of an
+Arduino firmware development workflow.
+
+The current `build.sh`:
+
+- checks the Arduino board preparation state;
+- compiles the Python firmware support modules;
+- runs the firmware workflow tests.
+
+It does not currently:
+
+- compile an `.ino` sketch;
+- invoke `arduino-cli`;
+- invoke PlatformIO;
+- generate `.hex` or `.bin` firmware;
+- upload firmware to a physical board.
+
+A real firmware compiler can be connected after this validation layer without
+changing the existing core code.
+
 ## License
 
-This project is distributed under the terms in [LICENSE](LICENSE).
+This project is distributed under the terms in [LICENSE](https://chatgpt.com/c/LICENSE).
