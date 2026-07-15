@@ -8,5 +8,7 @@ __pycache__/
 .vscode/
 dist/
 build/
+install/
+log/
 *.egg-info/
 artifacts/

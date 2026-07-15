@@ -1,6 +1,8 @@
-This repository includes a local bootstrap helper.
+This repository includes a local workspace bootstrap helper used during host-side
+device preparation.
 
-Before building or testing, attempt the bundled Linux helper:
+Before building, testing, or validating workspace state, attempt the bundled
+Linux helper:
 
 ```bash
 ./downloader

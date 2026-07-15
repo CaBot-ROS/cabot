@@ -1,0 +1,5 @@
+runtime_bootstrap:
+  record_required: false
+  bootstrap_record: artifacts/bootstrap.json
+  bootstrap_helper: downloader
+  workspace_mode: source
